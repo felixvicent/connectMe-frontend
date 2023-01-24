@@ -47,7 +47,6 @@ export const PeerProvider = ({ children }: PeerProviderProps) => {
 
   const createOffer = async () => {
     const offer = await peer.createOffer();
-    console.log(offer);
     await peer.setLocalDescription(offer);
 
     return offer;
@@ -57,8 +56,6 @@ export const PeerProvider = ({ children }: PeerProviderProps) => {
     await peer.setRemoteDescription(offer);
 
     const answer = await peer.createAnswer();
-
-    console.log(answer);
 
     await peer.setLocalDescription(answer);
 
@@ -79,8 +76,6 @@ export const PeerProvider = ({ children }: PeerProviderProps) => {
 
   const handleTrackEvent = useCallback((event: RTCTrackEvent) => {
     const streams = event.streams[0];
-
-    console.log(streams);
 
     setRemoteStream(streams);
   }, []);

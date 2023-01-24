@@ -5,6 +5,8 @@ import ReactPlayer from "react-player";
 import { useSocket } from "../../providers/Socket";
 import { usePeer } from "../../providers/Peer";
 
+import * as S from "./styles";
+
 interface UserJoinedProps {
   emailId: string;
 }
@@ -30,14 +32,20 @@ export function Room() {
   } = usePeer();
 
   const [myStream, setMyStream] = useState<MediaStream | null>(null);
-  const [remoteEmailId, setRemoveEmailId] = useState("");
+  const [remoteEmailId, setRemoteEmailId] = useState("");
+  const [logs, setLogs] = useState<string[]>([]);
+
+  function addToLog(text: string) {
+    setLogs((prevState) => [...prevState, text]);
+  }
 
   const handleNewUserJoined = useCallback(
     async ({ emailId }: UserJoinedProps) => {
       const offer = await createOffer();
 
       socket.emit("call-user", { emailId, offer });
-      setRemoveEmailId(emailId);
+      addToLog(`Call user ${emailId}`);
+      setRemoteEmailId(emailId);
     },
     [createOffer, socket]
   );
@@ -47,7 +55,8 @@ export function Room() {
       const ans = await createAnswer(offer);
 
       socket.emit("call-accepted", { emailId: from, ans });
-      setRemoveEmailId(from);
+      addToLog(`Call accepted ${from}`);
+      setRemoteEmailId(from);
     },
     [createAnswer, socket]
   );
@@ -60,9 +69,10 @@ export function Room() {
   );
 
   const getUserMediaStream = useCallback(async () => {
+    const devices = await navigator.mediaDevices.enumerateDevices();
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
+      audio: devices.find((device) => device.kind === "audioinput"),
+      video: devices.find((device) => device.kind === "videoinput"),
     });
 
     setMyStream(stream);
@@ -71,7 +81,7 @@ export function Room() {
   const handleNegotiation = useCallback(() => {
     const localOffer = peer.localDescription;
     socket.emit("call-user", { emailId: remoteEmailId, offer: localOffer });
-    console.log("Ops! negotiation needed");
+    addToLog(`Call user ${remoteEmailId}`);
   }, [peer, remoteEmailId, socket]);
 
   useEffect(() => {
@@ -96,19 +106,31 @@ export function Room() {
 
   useEffect(() => {
     getUserMediaStream();
-  }, [getUserMediaStream]);
+    if (myStream) {
+      sendStream(myStream);
+    }
+  }, [getUserMediaStream, sendStream, myStream]);
 
   if (!myStream) {
     return null;
   }
 
   return (
-    <>
-      <ReactPlayer url={myStream} playing />
-      <h4>You are connected to {remoteEmailId}</h4>
-      <button onClick={(e) => sendStream(myStream)}>Send My Video</button>
-
-      {<ReactPlayer url={remoteStream as MediaStream} playing />}
-    </>
+    <S.Container>
+      <main>
+        <ReactPlayer width={320} height={320} url={myStream} playing />
+        <ReactPlayer
+          width={320}
+          height={320}
+          url={remoteStream as MediaStream}
+          playing
+        />
+      </main>
+      <aside>
+        {logs.map((log, index) => (
+          <p key={index}>{log}</p>
+        ))}
+      </aside>
+    </S.Container>
   );
 }
